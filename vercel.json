@@ -9,6 +9,10 @@
           "value": "https://excalidraw.com"
         },
         {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://oss-ai.excalidraw.com"
+        },
+        {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
         },
