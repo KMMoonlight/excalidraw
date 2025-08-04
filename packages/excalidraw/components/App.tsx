@@ -17,8 +17,6 @@ import {
   vectorDot,
   vectorNormalize,
 } from "@excalidraw/math";
-import { isPointInShape } from "@excalidraw/utils/collision";
-import { getSelectionBoxShape } from "@excalidraw/utils/shape";
 
 import {
   COLOR_PALETTE,
@@ -101,31 +99,24 @@ import {
   type EXPORT_IMAGE_TYPES,
   randomInteger,
   CLASSES,
+  Emitter,
+  MINIMUM_ARROW_SIZE,
 } from "@excalidraw/common";
 
 import {
+  getObservedAppState,
   getCommonBounds,
+  maybeSuggestBindingsForLinearElementAtCoords,
   getElementAbsoluteCoords,
-} from "@excalidraw/element/bounds";
-
-import {
-  bindOrUnbindLinearElement,
   bindOrUnbindLinearElements,
   fixBindingsAfterDeletion,
   getHoveredElementForBinding,
   isBindingEnabled,
-  isLinearElementSimpleAndAlreadyBound,
-  maybeBindLinearElement,
   shouldEnableBindingForPointerEvent,
   updateBoundElements,
   getSuggestedBindingsForArrows,
-} from "@excalidraw/element/binding";
-
-import { LinearElementEditor } from "@excalidraw/element/linearElementEditor";
-
-import { newElementWith } from "@excalidraw/element/mutateElement";
-
-import {
+  LinearElementEditor,
+  newElementWith,
   newFrameElement,
   newFreeDrawElement,
   newEmbeddableElement,
@@ -137,14 +128,8 @@ import {
   newLinearElement,
   newTextElement,
   refreshTextDimensions,
-} from "@excalidraw/element/newElement";
-
-import {
   deepCopyElement,
   duplicateElements,
-} from "@excalidraw/element/duplicate";
-
-import {
   hasBoundTextElement,
   isArrowElement,
   isBindingElement,
@@ -165,48 +150,26 @@ import {
   isFlowchartNodeElement,
   isBindableElement,
   isTextElement,
-} from "@excalidraw/element/typeChecks";
-
-import {
   getLockedLinearCursorAlignSize,
   getNormalizedDimensions,
   isElementCompletelyInViewport,
   isElementInViewport,
   isInvisiblySmallElement,
-} from "@excalidraw/element/sizeHelpers";
-
-import {
-  getBoundTextShape,
   getCornerRadius,
-  getElementShape,
   isPathALoop,
-} from "@excalidraw/element/shapes";
-
-import {
   createSrcDoc,
   embeddableURLValidator,
   maybeParseEmbedSrc,
   getEmbedLink,
-} from "@excalidraw/element/embeddable";
-
-import {
   getInitializedImageElements,
-  loadHTMLImageElement,
   normalizeSVG,
   updateImageCache as _updateImageCache,
-} from "@excalidraw/element/image";
-
-import {
   getBoundTextElement,
   getContainerCenter,
   getContainerElement,
   isValidTextContainer,
   redrawTextBoundingBox,
-} from "@excalidraw/element/textElement";
-
-import { shouldShowBoundingBox } from "@excalidraw/element/transformHandles";
-
-import {
+  shouldShowBoundingBox,
   getFrameChildren,
   isCursorInFrame,
   addElementsToFrame,
@@ -221,32 +184,17 @@ import {
   getFrameLikeTitle,
   getElementsOverlappingFrame,
   filterElementsEligibleAsFrameChildren,
-} from "@excalidraw/element/frame";
-
-import {
   hitElementBoundText,
   hitElementBoundingBoxOnly,
   hitElementItself,
-} from "@excalidraw/element/collision";
-
-import { getVisibleSceneBounds } from "@excalidraw/element/bounds";
-
-import {
+  getVisibleSceneBounds,
   FlowChartCreator,
   FlowChartNavigator,
   getLinkDirectionFromKey,
-} from "@excalidraw/element/flowchart";
-
-import { cropElement } from "@excalidraw/element/cropElement";
-
-import { wrapText } from "@excalidraw/element/textWrapping";
-
-import {
+  cropElement,
+  wrapText,
   isElementLink,
   parseElementLinkFromURL,
-} from "@excalidraw/element/elementLink";
-
-import {
   isMeasureTextSupported,
   normalizeText,
   measureText,
@@ -254,13 +202,8 @@ import {
   getApproxMinLineWidth,
   getApproxMinLineHeight,
   getMinTextElementWidth,
-} from "@excalidraw/element/textMeasurements";
-
-import { ShapeCache } from "@excalidraw/element/ShapeCache";
-
-import { getRenderOpacity } from "@excalidraw/element/renderElement";
-
-import {
+  ShapeCache,
+  getRenderOpacity,
   editGroupForSelectedElement,
   getElementsInGroup,
   getSelectedGroupIdForElement,
@@ -268,47 +211,33 @@ import {
   isElementInGroup,
   isSelectedViaGroup,
   selectGroupsForSelectedElements,
-} from "@excalidraw/element/groups";
-
-import {
   syncInvalidIndices,
   syncMovedIndices,
-} from "@excalidraw/element/fractionalIndex";
-
-import {
   excludeElementsInFramesFromSelection,
   getSelectionStateForElements,
   makeNextSelectedElementIds,
-} from "@excalidraw/element/selection";
-
-import {
   getResizeOffsetXY,
   getResizeArrowDirection,
   transformElements,
-} from "@excalidraw/element/resizeElements";
-
-import {
   getCursorForResizingElement,
   getElementWithTransformHandleType,
   getTransformHandleTypeFromCoords,
-} from "@excalidraw/element/resizeTest";
-
-import {
   dragNewElement,
   dragSelectedElements,
   getDragOffsetXY,
-} from "@excalidraw/element/dragElements";
-
-import { isNonDeletedElement } from "@excalidraw/element";
-
-import Scene from "@excalidraw/element/Scene";
-
-import type { ElementUpdate } from "@excalidraw/element/mutateElement";
+  isNonDeletedElement,
+  Scene,
+  Store,
+  CaptureUpdateAction,
+  type ElementUpdate,
+  hitElementBoundingBox,
+  isLineElement,
+  isSimpleArrow,
+} from "@excalidraw/element";
 
 import type { LocalPoint, Radians } from "@excalidraw/math";
 
 import type {
-  ExcalidrawBindableElement,
   ExcalidrawElement,
   ExcalidrawFreeDrawElement,
   ExcalidrawGenericElement,
@@ -328,7 +257,6 @@ import type {
   ExcalidrawEmbeddableElement,
   Ordered,
   MagicGenerationData,
-  ExcalidrawNonSelectionElement,
   ExcalidrawArrowElement,
   ExcalidrawElbowArrowElement,
 } from "@excalidraw/element/types";
@@ -408,7 +336,6 @@ import {
 } from "../scene";
 import { getStateForZoom } from "../scene/zoom";
 import {
-  dataURLToFile,
   dataURLToString,
   generateIdFromFile,
   getDataURL,
@@ -454,9 +381,7 @@ import {
   resetCursor,
   setCursorForShape,
 } from "../cursor";
-import { Emitter } from "../emitter";
 import { ElementCanvasButtons } from "../components/ElementCanvasButtons";
-import { Store, CaptureUpdateAction } from "../store";
 import { LaserTrails } from "../laser-trails";
 import { withBatchedUpdates, withBatchedUpdatesThrottled } from "../reactUtils";
 import { textWysiwyg } from "../wysiwyg/textWysiwyg";
@@ -495,6 +420,8 @@ import { Toast } from "./Toast";
 
 import { findShapeByKey } from "./shapes";
 
+import UnlockPopup from "./UnlockPopup";
+
 import type {
   RenderInteractiveSceneCallback,
   ScrollBars,
@@ -510,7 +437,6 @@ import type {
   AppProps,
   AppState,
   BinaryFileData,
-  DataURL,
   ExcalidrawImperativeAPI,
   BinaryFiles,
   Gesture,
@@ -668,6 +594,10 @@ class App extends React.Component<AppProps, AppState> {
    * insert to DOM before user initially scrolls to them) */
   private initializedEmbeds = new Set<ExcalidrawIframeLikeElement["id"]>();
 
+  private handleToastClose = () => {
+    this.setToast(null);
+  };
+
   private elementsPendingErasure: ElementsPendingErasure = new Set();
 
   public flowChartCreator: FlowChartCreator = new FlowChartCreator();
@@ -761,8 +691,8 @@ class App extends React.Component<AppProps, AppState> {
     this.renderer = new Renderer(this.scene);
     this.visibleElements = [];
 
-    this.store = new Store();
-    this.history = new History();
+    this.store = new Store(this);
+    this.history = new History(this.store);
 
     if (excalidrawAPI) {
       const api: ExcalidrawImperativeAPI = {
@@ -772,6 +702,8 @@ class App extends React.Component<AppProps, AppState> {
         addFiles: this.addFiles,
         resetScene: this.resetScene,
         getSceneElementsIncludingDeleted: this.getSceneElementsIncludingDeleted,
+        getSceneElementsMapIncludingDeleted:
+          this.getSceneElementsMapIncludingDeleted,
         history: {
           clear: this.resetHistory,
         },
@@ -792,6 +724,7 @@ class App extends React.Component<AppProps, AppState> {
         updateFrameRendering: this.updateFrameRendering,
         toggleSidebar: this.toggleSidebar,
         onChange: (cb) => this.onChangeEmitter.on(cb),
+        onIncrement: (cb) => this.store.onStoreIncrementEmitter.on(cb),
         onPointerDown: (cb) => this.onPointerDownEmitter.on(cb),
         onPointerUp: (cb) => this.onPointerUpEmitter.on(cb),
         onScrollChange: (cb) => this.onScrollChangeEmitter.on(cb),
@@ -810,15 +743,11 @@ class App extends React.Component<AppProps, AppState> {
     };
 
     this.fonts = new Fonts(this.scene);
-    this.history = new History();
+    this.history = new History(this.store);
 
     this.actionManager.registerAll(actions);
-    this.actionManager.registerAction(
-      createUndoAction(this.history, this.store),
-    );
-    this.actionManager.registerAction(
-      createRedoAction(this.history, this.store),
-    );
+    this.actionManager.registerAction(createUndoAction(this.history));
+    this.actionManager.registerAction(createRedoAction(this.history));
   }
 
   updateEditorAtom = <Value, Args extends unknown[], Result>(
@@ -1418,8 +1347,19 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     const isDarkTheme = this.state.theme === THEME.DARK;
+    const nonDeletedFramesLikes = this.scene.getNonDeletedFramesLikes();
 
-    return this.scene.getNonDeletedFramesLikes().map((f) => {
+    const focusedSearchMatch =
+      nonDeletedFramesLikes.length > 0
+        ? this.state.searchMatches?.focusedId &&
+          isFrameLikeElement(
+            this.scene.getElement(this.state.searchMatches.focusedId),
+          )
+          ? this.state.searchMatches.matches.find((sm) => sm.focus)
+          : null
+        : null;
+
+    return nonDeletedFramesLikes.map((f) => {
       if (
         !isElementInViewport(
           f,
@@ -1485,7 +1425,7 @@ class App extends React.Component<AppProps, AppState> {
               borderRadius: 4,
               boxShadow: "inset 0 0 0 1px var(--color-primary)",
               fontFamily: "Assistant",
-              fontSize: "14px",
+              fontSize: `${FRAME_STYLE.nameFontSize}px`,
               transform: `translate(-${FRAME_NAME_EDIT_PADDING}px, ${FRAME_NAME_EDIT_PADDING}px)`,
               color: "var(--color-gray-80)",
               overflow: "hidden",
@@ -1529,7 +1469,10 @@ class App extends React.Component<AppProps, AppState> {
               : FRAME_STYLE.nameColorLightTheme,
             lineHeight: FRAME_STYLE.nameLineHeight,
             width: "max-content",
-            maxWidth: `${f.width}px`,
+            maxWidth:
+              focusedSearchMatch?.id === f.id && focusedSearchMatch?.focus
+                ? "none"
+                : `${f.width * this.state.zoom.value}px`,
             overflow: f.id === this.state.editingFrame ? "visible" : "hidden",
             whiteSpace: "nowrap",
             textOverflow: "ellipsis",
@@ -1577,7 +1520,6 @@ class App extends React.Component<AppProps, AppState> {
         width: this.state.width,
         editingTextElement: this.state.editingTextElement,
         newElementId: this.state.newElement?.id,
-        pendingImageElementId: this.state.pendingImageElementId,
       });
     this.visibleElements = visibleElements;
 
@@ -1770,14 +1712,16 @@ class App extends React.Component<AppProps, AppState> {
                               />
                             </ElementCanvasButtons>
                           )}
+
                         {this.state.toast !== null && (
                           <Toast
                             message={this.state.toast.message}
-                            onClose={() => this.setToast(null)}
+                            onClose={this.handleToastClose}
                             duration={this.state.toast.duration}
                             closable={this.state.toast.closable}
                           />
                         )}
+
                         {this.state.contextMenu && (
                           <ContextMenu
                             items={this.state.contextMenu.items}
@@ -1875,6 +1819,12 @@ class App extends React.Component<AppProps, AppState> {
                           />
                         )}
                         {this.renderFrameNames()}
+                        {this.state.activeLockedId && (
+                          <UnlockPopup
+                            app={this}
+                            activeLockedId={this.state.activeLockedId}
+                          />
+                        )}
                         {showShapeSwitchPanel && (
                           <ConvertElementTypePopup app={this} />
                         )}
@@ -1897,6 +1847,10 @@ class App extends React.Component<AppProps, AppState> {
 
   public getSceneElementsIncludingDeleted = () => {
     return this.scene.getElementsIncludingDeleted();
+  };
+
+  public getSceneElementsMapIncludingDeleted = () => {
+    return this.scene.getElementsMapIncludingDeleted();
   };
 
   public getSceneElements = () => {
@@ -2204,9 +2158,14 @@ class App extends React.Component<AppProps, AppState> {
 
   public dismissLinearEditor = () => {
     setTimeout(() => {
-      this.setState({
-        editingLinearElement: null,
-      });
+      if (this.state.selectedLinearElement?.isEditing) {
+        this.setState({
+          selectedLinearElement: {
+            ...this.state.selectedLinearElement,
+            isEditing: false,
+          },
+        });
+      }
     });
   };
 
@@ -2215,11 +2174,7 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
-    if (actionResult.captureUpdate === CaptureUpdateAction.NEVER) {
-      this.store.shouldUpdateSnapshot();
-    } else if (actionResult.captureUpdate === CaptureUpdateAction.IMMEDIATELY) {
-      this.store.shouldCaptureIncrement();
-    }
+    this.store.scheduleAction(actionResult.captureUpdate);
 
     let didUpdate = false;
 
@@ -2292,10 +2247,7 @@ class App extends React.Component<AppProps, AppState> {
       didUpdate = true;
     }
 
-    if (
-      !didUpdate &&
-      actionResult.captureUpdate !== CaptureUpdateAction.EVENTUALLY
-    ) {
+    if (!didUpdate) {
       this.scene.triggerUpdate();
     }
   });
@@ -2547,9 +2499,18 @@ class App extends React.Component<AppProps, AppState> {
       });
     }
 
-    this.store.onStoreIncrementEmitter.on((increment) => {
-      this.history.record(increment.elementsChange, increment.appStateChange);
+    this.store.onDurableIncrementEmitter.on((increment) => {
+      this.history.record(increment.delta);
     });
+
+    const { onIncrement } = this.props;
+
+    // per. optimmisation, only subscribe if there is the `onIncrement` prop registered, to avoid unnecessary computation
+    if (onIncrement) {
+      this.store.onStoreIncrementEmitter.on((increment) => {
+        onIncrement(increment);
+      });
+    }
 
     this.scene.onUpdate(this.triggerRender);
     this.addEventListeners();
@@ -2610,6 +2571,7 @@ class App extends React.Component<AppProps, AppState> {
     this.eraserTrail.stop();
     this.onChangeEmitter.clear();
     this.store.onStoreIncrementEmitter.clear();
+    this.store.onDurableIncrementEmitter.clear();
     ShapeCache.destroy();
     SnapCache.destroy();
     clearTimeout(touchTimeout);
@@ -2781,7 +2743,6 @@ class App extends React.Component<AppProps, AppState> {
     this.updateEmbeddables();
     const elements = this.scene.getElementsIncludingDeleted();
     const elementsMap = this.scene.getElementsMapIncludingDeleted();
-    const nonDeletedElementsMap = this.scene.getNonDeletedElementsMap();
 
     if (!this.state.showWelcomeScreen && !elements.length) {
       this.setState({ showWelcomeScreen: true });
@@ -2900,15 +2861,15 @@ class App extends React.Component<AppProps, AppState> {
     );
 
     if (
-      this.state.editingLinearElement &&
-      !this.state.selectedElementIds[this.state.editingLinearElement.elementId]
+      this.state.selectedLinearElement?.isEditing &&
+      !this.state.selectedElementIds[this.state.selectedLinearElement.elementId]
     ) {
-      // defer so that the shouldCaptureIncrement flag isn't reset via current update
+      // defer so that the scheduleCapture flag isn't reset via current update
       setTimeout(() => {
         // execute only if the condition still holds when the deferred callback
         // executes (it can be scheduled multiple times depending on how
         // many times the component renders)
-        this.state.editingLinearElement &&
+        this.state.selectedLinearElement?.isEditing &&
           this.actionManager.executeAction(actionFinalize);
       });
     }
@@ -2926,27 +2887,6 @@ class App extends React.Component<AppProps, AppState> {
       // To make sure `selectedLinearElement` is in sync with `selectedElementIds`, however this shouldn't be needed once
       // we have a single API to update `selectedElementIds`
       this.setState({ selectedLinearElement: null });
-    }
-
-    const { multiElement } = prevState;
-    if (
-      prevState.activeTool !== this.state.activeTool &&
-      multiElement != null &&
-      isBindingEnabled(this.state) &&
-      isBindingElement(multiElement, false)
-    ) {
-      maybeBindLinearElement(
-        multiElement,
-        this.state,
-        tupleToCoors(
-          LinearElementEditor.getPointAtIndexGlobalCoordinates(
-            multiElement,
-            -1,
-            nonDeletedElementsMap,
-          ),
-        ),
-        this.scene,
-      );
     }
 
     this.store.commit(elementsMap, this.state);
@@ -3072,6 +3012,7 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
+  // TODO: this is so spaghetti, we should refactor it and cover it with tests
   public pasteFromClipboard = withBatchedUpdates(
     async (event: ClipboardEvent) => {
       const isPlainPaste = !!IS_PLAIN_PASTE;
@@ -3133,17 +3074,7 @@ class App extends React.Component<AppProps, AppState> {
           return;
         }
 
-        const imageElement = this.createImageElement({ sceneX, sceneY });
-        this.insertImageElement(imageElement, file);
-        this.initializeImageDimensions(imageElement);
-        this.setState({
-          selectedElementIds: makeNextSelectedElementIds(
-            {
-              [imageElement.id]: true,
-            },
-            this.state,
-          ),
-        });
+        this.createImageElement({ sceneX, sceneY, imageFile: file });
 
         return;
       }
@@ -3246,6 +3177,7 @@ class App extends React.Component<AppProps, AppState> {
             }
           }
           if (embeddables.length) {
+            this.store.scheduleCapture();
             this.setState({
               selectedElementIds: Object.fromEntries(
                 embeddables.map((embeddable) => [embeddable.id, true]),
@@ -3358,11 +3290,10 @@ class App extends React.Component<AppProps, AppState> {
       this.addMissingFiles(opts.files);
     }
 
-    this.store.shouldCaptureIncrement();
-
     const nextElementsToSelect =
       excludeElementsInFramesFromSelection(duplicatedElements);
 
+    this.store.scheduleCapture();
     this.setState(
       {
         ...this.state,
@@ -3449,15 +3380,12 @@ class App extends React.Component<AppProps, AppState> {
       const nextSelectedIds: Record<ExcalidrawElement["id"], true> = {};
       for (const response of responses) {
         if (response.file) {
-          const imageElement = this.createImageElement({
+          const initializedImageElement = await this.createImageElement({
             sceneX,
             sceneY: y,
+            imageFile: response.file,
           });
 
-          const initializedImageElement = await this.insertImageElement(
-            imageElement,
-            response.file,
-          );
           if (initializedImageElement) {
             // vertically center first image in the batch
             if (!firstImageYOffsetDone) {
@@ -3472,9 +3400,9 @@ class App extends React.Component<AppProps, AppState> {
               { informMutation: false, isDragging: false },
             );
 
-            y = imageElement.y + imageElement.height + 25;
+            y = initializedImageElement.y + initializedImageElement.height + 25;
 
-            nextSelectedIds[imageElement.id] = true;
+            nextSelectedIds[initializedImageElement.id] = true;
           }
         }
       }
@@ -3596,7 +3524,7 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     this.scene.insertElements(textElements);
-
+    this.store.scheduleCapture();
     this.setState({
       selectedElementIds: makeNextSelectedElementIds(
         Object.fromEntries(textElements.map((el) => [el.id, true])),
@@ -3618,8 +3546,6 @@ class App extends React.Component<AppProps, AppState> {
       });
       PLAIN_PASTE_TOAST_SHOWN = true;
     }
-
-    this.store.shouldCaptureIncrement();
   }
 
   setAppState: React.Component<any, AppState>["setState"] = (
@@ -3975,51 +3901,34 @@ class App extends React.Component<AppProps, AppState> {
        */
       captureUpdate?: SceneData["captureUpdate"];
     }) => {
-      const nextElements = syncInvalidIndices(sceneData.elements ?? []);
+      const { elements, appState, collaborators, captureUpdate } = sceneData;
 
-      if (
-        sceneData.captureUpdate &&
-        sceneData.captureUpdate !== CaptureUpdateAction.EVENTUALLY
-      ) {
-        const prevCommittedAppState = this.store.snapshot.appState;
-        const prevCommittedElements = this.store.snapshot.elements;
+      if (captureUpdate) {
+        const nextElements = elements ? elements : undefined;
+        const observedAppState = appState
+          ? getObservedAppState({
+              ...this.store.snapshot.appState,
+              ...appState,
+            })
+          : undefined;
 
-        const nextCommittedAppState = sceneData.appState
-          ? Object.assign({}, prevCommittedAppState, sceneData.appState) // new instance, with partial appstate applied to previously captured one, including hidden prop inside `prevCommittedAppState`
-          : prevCommittedAppState;
-
-        const nextCommittedElements = sceneData.elements
-          ? this.store.filterUncomittedElements(
-              this.scene.getElementsMapIncludingDeleted(), // Only used to detect uncomitted local elements
-              arrayToMap(nextElements), // We expect all (already reconciled) elements
-            )
-          : prevCommittedElements;
-
-        // WARN: store action always performs deep clone of changed elements, for ephemeral remote updates (i.e. remote dragging, resizing, drawing) we might consider doing something smarter
-        // do NOT schedule store actions (execute after re-render), as it might cause unexpected concurrency issues if not handled well
-        if (sceneData.captureUpdate === CaptureUpdateAction.IMMEDIATELY) {
-          this.store.captureIncrement(
-            nextCommittedElements,
-            nextCommittedAppState,
-          );
-        } else if (sceneData.captureUpdate === CaptureUpdateAction.NEVER) {
-          this.store.updateSnapshot(
-            nextCommittedElements,
-            nextCommittedAppState,
-          );
-        }
+        this.store.scheduleMicroAction({
+          action: captureUpdate,
+          elements: nextElements,
+          appState: observedAppState,
+        });
       }
 
-      if (sceneData.appState) {
-        this.setState(sceneData.appState);
+      if (appState) {
+        this.setState(appState);
       }
 
-      if (sceneData.elements) {
-        this.scene.replaceAllElements(nextElements);
+      if (elements) {
+        this.scene.replaceAllElements(elements);
       }
 
-      if (sceneData.collaborators) {
-        this.setState({ collaborators: sceneData.collaborators });
+      if (collaborators) {
+        this.setState({ collaborators });
       }
     },
   );
@@ -4202,7 +4111,7 @@ class App extends React.Component<AppProps, AppState> {
                 direction: event.shiftKey ? "left" : "right",
               })
             ) {
-              this.store.shouldCaptureIncrement();
+              this.store.scheduleCapture();
             }
           }
           if (conversionType) {
@@ -4512,21 +4421,16 @@ class App extends React.Component<AppProps, AppState> {
         const selectedElements = this.scene.getSelectedElements(this.state);
         if (selectedElements.length === 1) {
           const selectedElement = selectedElements[0];
-          if (event[KEYS.CTRL_OR_CMD]) {
+          if (event[KEYS.CTRL_OR_CMD] || isLineElement(selectedElement)) {
             if (isLinearElement(selectedElement)) {
               if (
-                !this.state.editingLinearElement ||
-                this.state.editingLinearElement.elementId !==
-                  selectedElements[0].id
+                !this.state.selectedLinearElement?.isEditing ||
+                this.state.selectedLinearElement.elementId !==
+                  selectedElement.id
               ) {
-                this.store.shouldCaptureIncrement();
+                this.store.scheduleCapture();
                 if (!isElbowArrow(selectedElement)) {
-                  this.setState({
-                    editingLinearElement: new LinearElementEditor(
-                      selectedElement,
-                      this.scene.getNonDeletedElementsMap(),
-                    ),
-                  });
+                  this.actionManager.executeAction(actionToggleLinearEditor);
                 }
               }
             }
@@ -4796,16 +4700,10 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   setActiveTool = (
-    tool: (
-      | (
-          | { type: Exclude<ToolType, "image"> }
-          | {
-              type: Extract<ToolType, "image">;
-              insertOnCanvasDirectly?: boolean;
-            }
-        )
-      | { type: "custom"; customType: string }
-    ) & { locked?: boolean; fromSelection?: boolean },
+    tool: ({ type: ToolType } | { type: "custom"; customType: string }) & {
+      locked?: boolean;
+      fromSelection?: boolean;
+    },
     keepSelection = false,
   ) => {
     if (!this.isToolSupported(tool.type)) {
@@ -4831,10 +4729,7 @@ class App extends React.Component<AppProps, AppState> {
       this.setState({ suggestedBindings: [] });
     }
     if (nextActiveTool.type === "image") {
-      this.onImageAction({
-        insertOnCanvasDirectly:
-          (tool.type === "image" && tool.insertOnCanvasDirectly) ?? false,
-      });
+      this.onImageAction();
     }
 
     this.setState((prevState) => {
@@ -4845,7 +4740,7 @@ class App extends React.Component<AppProps, AppState> {
       } as const;
 
       if (nextActiveTool.type === "freedraw") {
-        this.store.shouldCaptureIncrement();
+        this.store.scheduleCapture();
       }
 
       if (nextActiveTool.type === "lasso") {
@@ -5032,7 +4927,17 @@ class App extends React.Component<AppProps, AppState> {
       }),
       onSubmit: withBatchedUpdates(({ viaKeyboard, nextOriginalText }) => {
         const isDeleted = !nextOriginalText.trim();
-        updateElement(nextOriginalText, isDeleted);
+
+        if (isDeleted && !isExistingElement) {
+          // let's just remove the element from the scene, as it's an empty just created text element
+          this.scene.replaceAllElements(
+            this.scene
+              .getElementsIncludingDeleted()
+              .filter((x) => x.id !== element.id),
+          );
+        } else {
+          updateElement(nextOriginalText, isDeleted);
+        }
         // select the created text element only if submitting via keyboard
         // (when submitting via click it should act as signal to deselect)
         if (!isDeleted && viaKeyboard) {
@@ -5061,9 +4966,10 @@ class App extends React.Component<AppProps, AppState> {
             element,
           ]);
         }
-        if (!isDeleted || isExistingElement) {
-          this.store.shouldCaptureIncrement();
-        }
+
+        // we need to record either way, whether the text element was added or removed
+        // since we need to sync this delta to other clients, otherwise it would end up with inconsistencies
+        this.store.scheduleCapture();
 
         flushSync(() => {
           this.setState({
@@ -5117,21 +5023,31 @@ class App extends React.Component<AppProps, AppState> {
     return null;
   }
 
+  // NOTE: Hot path for hit testing, so avoid unnecessary computations
   private getElementAtPosition(
     x: number,
     y: number,
-    opts?: {
+    opts?: (
+      | {
+          includeBoundTextElement?: boolean;
+          includeLockedElements?: boolean;
+        }
+      | {
+          allHitElements: NonDeleted<ExcalidrawElement>[];
+        }
+    ) & {
       preferSelected?: boolean;
-      includeBoundTextElement?: boolean;
-      includeLockedElements?: boolean;
     },
   ): NonDeleted<ExcalidrawElement> | null {
-    const allHitElements = this.getElementsAtPosition(
-      x,
-      y,
-      opts?.includeBoundTextElement,
-      opts?.includeLockedElements,
-    );
+    let allHitElements: NonDeleted<ExcalidrawElement>[] = [];
+    if (opts && "allHitElements" in opts) {
+      allHitElements = opts?.allHitElements || [];
+    } else {
+      allHitElements = this.getElementsAtPosition(x, y, {
+        includeBoundTextElement: opts?.includeBoundTextElement,
+        includeLockedElements: opts?.includeLockedElements,
+      });
+    }
 
     if (allHitElements.length > 1) {
       if (opts?.preferSelected) {
@@ -5147,16 +5063,12 @@ class App extends React.Component<AppProps, AppState> {
       // If we're hitting element with highest z-index only on its bounding box
       // while also hitting other element figure, the latter should be considered.
       return hitElementItself({
-        x,
-        y,
+        point: pointFrom(x, y),
         element: elementWithHighestZIndex,
-        shape: getElementShape(
-          elementWithHighestZIndex,
-          this.scene.getNonDeletedElementsMap(),
-        ),
         // when overlapping, we would like to be more precise
         // this also avoids the need to update past tests
-        threshold: this.getElementHitThreshold() / 2,
+        threshold: this.getElementHitThreshold(elementWithHighestZIndex) / 2,
+        elementsMap: this.scene.getNonDeletedElementsMap(),
         frameNameBound: isFrameLikeElement(elementWithHighestZIndex)
           ? this.frameNameBoundsCache.get(elementWithHighestZIndex)
           : null,
@@ -5171,25 +5083,28 @@ class App extends React.Component<AppProps, AppState> {
     return null;
   }
 
+  // NOTE: Hot path for hit testing, so avoid unnecessary computations
   private getElementsAtPosition(
     x: number,
     y: number,
-    includeBoundTextElement: boolean = false,
-    includeLockedElements: boolean = false,
+    opts?: {
+      includeBoundTextElement?: boolean;
+      includeLockedElements?: boolean;
+    },
   ): NonDeleted<ExcalidrawElement>[] {
     const iframeLikes: Ordered<ExcalidrawIframeElement>[] = [];
 
     const elementsMap = this.scene.getNonDeletedElementsMap();
 
     const elements = (
-      includeBoundTextElement && includeLockedElements
+      opts?.includeBoundTextElement && opts?.includeLockedElements
         ? this.scene.getNonDeletedElements()
         : this.scene
             .getNonDeletedElements()
             .filter(
               (element) =>
-                (includeLockedElements || !element.locked) &&
-                (includeBoundTextElement ||
+                (opts?.includeLockedElements || !element.locked) &&
+                (opts?.includeBoundTextElement ||
                   !(isTextElement(element) && element.containerId)),
             )
     )
@@ -5219,8 +5134,14 @@ class App extends React.Component<AppProps, AppState> {
     return elements;
   }
 
-  getElementHitThreshold() {
-    return DEFAULT_COLLISION_THRESHOLD / this.state.zoom.value;
+  getElementHitThreshold(element: ExcalidrawElement) {
+    return Math.max(
+      element.strokeWidth / 2 + 0.1,
+      // NOTE: Here be dragons. Do not go under the 0.63 multiplier unless you're
+      // willing to test extensively. The hit testing starts to become unreliable
+      // due to FP imprecision under 0.63 in high zoom levels.
+      0.85 * (DEFAULT_COLLISION_THRESHOLD / this.state.zoom.value),
+    );
   }
 
   private hitElement(
@@ -5235,35 +5156,35 @@ class App extends React.Component<AppProps, AppState> {
       this.state.selectedElementIds[element.id] &&
       shouldShowBoundingBox([element], this.state)
     ) {
-      const selectionShape = getSelectionBoxShape(
-        element,
-        this.scene.getNonDeletedElementsMap(),
-        isImageElement(element) ? 0 : this.getElementHitThreshold(),
-      );
-
       // if hitting the bounding box, return early
       // but if not, we should check for other cases as well (e.g. frame name)
-      if (isPointInShape(pointFrom(x, y), selectionShape)) {
+      if (
+        hitElementBoundingBox(
+          pointFrom(x, y),
+          element,
+          this.scene.getNonDeletedElementsMap(),
+          this.getElementHitThreshold(element),
+        )
+      ) {
         return true;
       }
     }
 
     // take bound text element into consideration for hit collision as well
     const hitBoundTextOfElement = hitElementBoundText(
-      x,
-      y,
-      getBoundTextShape(element, this.scene.getNonDeletedElementsMap()),
+      pointFrom(x, y),
+      element,
+      this.scene.getNonDeletedElementsMap(),
     );
     if (hitBoundTextOfElement) {
       return true;
     }
 
     return hitElementItself({
-      x,
-      y,
+      point: pointFrom(x, y),
       element,
-      shape: getElementShape(element, this.scene.getNonDeletedElementsMap()),
-      threshold: this.getElementHitThreshold(),
+      threshold: this.getElementHitThreshold(element),
+      elementsMap: this.scene.getNonDeletedElementsMap(),
       frameNameBound: isFrameLikeElement(element)
         ? this.frameNameBoundsCache.get(element)
         : null,
@@ -5291,14 +5212,10 @@ class App extends React.Component<AppProps, AppState> {
       if (
         isArrowElement(elements[index]) &&
         hitElementItself({
-          x,
-          y,
+          point: pointFrom(x, y),
           element: elements[index],
-          shape: getElementShape(
-            elements[index],
-            this.scene.getNonDeletedElementsMap(),
-          ),
-          threshold: this.getElementHitThreshold(),
+          elementsMap: this.scene.getNonDeletedElementsMap(),
+          threshold: this.getElementHitThreshold(elements[index]),
         })
       ) {
         hitElement = elements[index];
@@ -5475,7 +5392,7 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   private startImageCropping = (image: ExcalidrawImageElement) => {
-    this.store.shouldCaptureIncrement();
+    this.store.scheduleCapture();
     this.setState({
       croppingElementId: image.id,
     });
@@ -5483,7 +5400,7 @@ class App extends React.Component<AppProps, AppState> {
 
   private finishImageCropping = () => {
     if (this.state.croppingElementId) {
-      this.store.shouldCaptureIncrement();
+      this.store.scheduleCapture();
       this.setState({
         croppingElementId: null,
       });
@@ -5511,20 +5428,17 @@ class App extends React.Component<AppProps, AppState> {
     );
 
     if (selectedElements.length === 1 && isLinearElement(selectedElements[0])) {
+      const selectedLinearElement: ExcalidrawLinearElement =
+        selectedElements[0];
       if (
-        event[KEYS.CTRL_OR_CMD] &&
-        (!this.state.editingLinearElement ||
-          this.state.editingLinearElement.elementId !==
-            selectedElements[0].id) &&
-        !isElbowArrow(selectedElements[0])
+        ((event[KEYS.CTRL_OR_CMD] && isSimpleArrow(selectedLinearElement)) ||
+          isLineElement(selectedLinearElement)) &&
+        (!this.state.selectedLinearElement?.isEditing ||
+          this.state.selectedLinearElement.elementId !==
+            selectedLinearElement.id)
       ) {
-        this.store.shouldCaptureIncrement();
-        this.setState({
-          editingLinearElement: new LinearElementEditor(
-            selectedElements[0],
-            this.scene.getNonDeletedElementsMap(),
-          ),
-        });
+        // Use the proper action to ensure immediate history capture
+        this.actionManager.executeAction(actionToggleLinearEditor);
         return;
       } else if (
         this.state.selectedLinearElement &&
@@ -5546,7 +5460,7 @@ class App extends React.Component<AppProps, AppState> {
           : -1;
 
         if (midPoint && midPoint > -1) {
-          this.store.shouldCaptureIncrement();
+          this.store.scheduleCapture();
           LinearElementEditor.deleteFixedSegment(
             selectedElements[0],
             this.scene,
@@ -5588,6 +5502,13 @@ class App extends React.Component<AppProps, AppState> {
 
           return;
         }
+      } else if (
+        this.state.selectedLinearElement?.isEditing &&
+        this.state.selectedLinearElement.elementId ===
+          selectedLinearElement.id &&
+        isLineElement(selectedLinearElement)
+      ) {
+        return;
       }
     }
 
@@ -5608,7 +5529,7 @@ class App extends React.Component<AppProps, AppState> {
         getSelectedGroupIdForElement(hitElement, this.state.selectedGroupIds);
 
       if (selectedGroupId) {
-        this.store.shouldCaptureIncrement();
+        this.store.scheduleCapture();
         this.setState((prevState) => ({
           ...prevState,
           ...selectGroupsForSelectedElements(
@@ -5636,53 +5557,63 @@ class App extends React.Component<AppProps, AppState> {
         return;
       }
 
-      const container = this.getTextBindableContainerAtPosition(sceneX, sceneY);
+      // shouldn't edit/create text when inside line editor (often false positive)
 
-      if (container) {
-        if (
-          hasBoundTextElement(container) ||
-          !isTransparent(container.backgroundColor) ||
-          hitElementItself({
-            x: sceneX,
-            y: sceneY,
-            element: container,
-            shape: getElementShape(
+      if (!this.state.selectedLinearElement?.isEditing) {
+        const container = this.getTextBindableContainerAtPosition(
+          sceneX,
+          sceneY,
+        );
+
+        if (container) {
+          if (
+            hasBoundTextElement(container) ||
+            !isTransparent(container.backgroundColor) ||
+            hitElementItself({
+              point: pointFrom(sceneX, sceneY),
+              element: container,
+              elementsMap: this.scene.getNonDeletedElementsMap(),
+              threshold: this.getElementHitThreshold(container),
+            })
+          ) {
+            const midPoint = getContainerCenter(
               container,
+              this.state,
               this.scene.getNonDeletedElementsMap(),
-            ),
-            threshold: this.getElementHitThreshold(),
-          })
-        ) {
-          const midPoint = getContainerCenter(
-            container,
-            this.state,
-            this.scene.getNonDeletedElementsMap(),
-          );
+            );
 
-          sceneX = midPoint.x;
-          sceneY = midPoint.y;
+            sceneX = midPoint.x;
+            sceneY = midPoint.y;
+          }
         }
-      }
 
-      this.startTextEditing({
-        sceneX,
-        sceneY,
-        insertAtParentCenter: !event.altKey,
-        container,
-      });
+        this.startTextEditing({
+          sceneX,
+          sceneY,
+          insertAtParentCenter: !event.altKey,
+          container,
+        });
+      }
     }
   };
 
   private getElementLinkAtPosition = (
     scenePointer: Readonly<{ x: number; y: number }>,
-    hitElement: NonDeletedExcalidrawElement | null,
+    hitElementMightBeLocked: NonDeletedExcalidrawElement | null,
   ): ExcalidrawElement | undefined => {
+    if (hitElementMightBeLocked && hitElementMightBeLocked.locked) {
+      return undefined;
+    }
+
     const elements = this.scene.getNonDeletedElements();
     let hitElementIndex = -1;
 
     for (let index = elements.length - 1; index >= 0; index--) {
       const element = elements[index];
-      if (hitElement && element.id === hitElement.id) {
+      if (
+        hitElementMightBeLocked &&
+        element.id === hitElementMightBeLocked.id
+      ) {
         hitElementIndex = index;
       }
       if (
@@ -5926,8 +5857,8 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     if (
-      this.state.editingLinearElement &&
-      !this.state.editingLinearElement.isDragging
+      this.state.selectedLinearElement?.isEditing &&
+      !this.state.selectedLinearElement.isDragging
     ) {
       const editingLinearElement = LinearElementEditor.handlePointerMove(
         event,
@@ -5935,30 +5866,34 @@ class App extends React.Component<AppProps, AppState> {
         scenePointerY,
         this,
       );
+      const linearElement = editingLinearElement
+        ? this.scene.getElement(editingLinearElement.elementId)
+        : null;
 
       if (
         editingLinearElement &&
-        editingLinearElement !== this.state.editingLinearElement
+        editingLinearElement !== this.state.selectedLinearElement
       ) {
         // Since we are reading from previous state which is not possible with
         // automatic batching in React 18 hence using flush sync to synchronously
         // update the state. Check https://github.com/excalidraw/excalidraw/pull/5508 for more details.
         flushSync(() => {
           this.setState({
-            editingLinearElement,
+            selectedLinearElement: editingLinearElement,
           });
         });
       }
-      if (editingLinearElement?.lastUncommittedPoint != null) {
+      if (
+        editingLinearElement?.lastUncommittedPoint != null &&
+        linearElement &&
+        isBindingElementType(linearElement.type)
+      ) {
         this.maybeSuggestBindingAtCursor(
           scenePointer,
           editingLinearElement.elbowed,
         );
-      } else {
-        // causes stack overflow if not sync
-        flushSync(() => {
-          this.setState({ suggestedBindings: [] });
-        });
+      } else if (this.state.suggestedBindings.length) {
+        this.setState({ suggestedBindings: [] });
       }
     }
 
@@ -5967,11 +5902,15 @@ class App extends React.Component<AppProps, AppState> {
       // and point
       const { newElement } = this.state;
       if (isBindingElement(newElement, false)) {
-        this.maybeSuggestBindingsForLinearElementAtCoords(
-          newElement,
-          [scenePointer],
-          this.state.startBoundElement,
-        );
+        this.setState({
+          suggestedBindings: maybeSuggestBindingsForLinearElementAtCoords(
+            newElement,
+            [scenePointer],
+            this.scene,
+            this.state.zoom,
+            this.state.startBoundElement,
+          ),
+        });
       } else {
         this.maybeSuggestBindingAtCursor(scenePointer, false);
       }
@@ -6100,7 +6039,7 @@ class App extends React.Component<AppProps, AppState> {
     if (
       selectedElements.length === 1 &&
       !isOverScrollBar &&
-      !this.state.editingLinearElement
+      !this.state.selectedLinearElement?.isEditing
     ) {
       // for linear elements, we'd like to prioritize point dragging over edge resizing
       // therefore, we update and check hovered point index first
@@ -6164,14 +6103,25 @@ class App extends React.Component<AppProps, AppState> {
       }
     }
 
-    const hitElement = this.getElementAtPosition(
-      scenePointer.x,
-      scenePointer.y,
+    const hitElementMightBeLocked = this.getElementAtPosition(
+      scenePointerX,
+      scenePointerY,
+      {
+        preferSelected: true,
+        includeLockedElements: true,
+      },
     );
+
+    let hitElement: ExcalidrawElement | null = null;
+    if (hitElementMightBeLocked && hitElementMightBeLocked.locked) {
+      hitElement = null;
+    } else {
+      hitElement = hitElementMightBeLocked;
+    }
 
     this.hitLinkElement = this.getElementLinkAtPosition(
       scenePointer,
-      hitElement,
+      hitElementMightBeLocked,
     );
     if (isEraserActive(this.state)) {
       return;
@@ -6207,12 +6157,6 @@ class App extends React.Component<AppProps, AppState> {
         setCursor(this.interactiveCanvas, CURSOR_TYPE.AUTO);
       } else if (isOverScrollBar) {
         setCursor(this.interactiveCanvas, CURSOR_TYPE.AUTO);
-      } else if (this.state.selectedLinearElement) {
-        this.handleHoverSelectedLinearElement(
-          this.state.selectedLinearElement,
-          scenePointerX,
-          scenePointerY,
-        );
       } else if (
         // if using cmd/ctrl, we're not dragging
         !event[KEYS.CTRL_OR_CMD]
@@ -6254,6 +6198,14 @@ class App extends React.Component<AppProps, AppState> {
       } else {
         setCursor(this.interactiveCanvas, CURSOR_TYPE.AUTO);
       }
+
+      if (this.state.selectedLinearElement) {
+        this.handleHoverSelectedLinearElement(
+          this.state.selectedLinearElement,
+          scenePointerX,
+          scenePointerY,
+        );
+      }
     }
 
     if (this.state.openDialog?.name === "elementLinkSelector" && hitElement) {
@@ -6264,7 +6216,7 @@ class App extends React.Component<AppProps, AppState> {
             selectGroupsForSelectedElements(
               {
                 editingGroupId: prevState.editingGroupId,
-                selectedElementIds: { [hitElement.id]: true },
+                selectedElementIds: { [hitElement!.id]: true },
               },
               this.scene.getNonDeletedElements(),
               prevState,
@@ -6322,13 +6274,10 @@ class App extends React.Component<AppProps, AppState> {
       let segmentMidPointHoveredCoords = null;
       if (
         hitElementItself({
-          x: scenePointerX,
-          y: scenePointerY,
+          point: pointFrom(scenePointerX, scenePointerY),
           element,
-          shape: getElementShape(
-            element,
-            this.scene.getNonDeletedElementsMap(),
-          ),
+          elementsMap,
+          threshold: this.getElementHitThreshold(element),
         })
       ) {
         hoverPointIndex = LinearElementEditor.getPointIndexUnderCursor(
@@ -6413,12 +6362,17 @@ class App extends React.Component<AppProps, AppState> {
     this.maybeUnfollowRemoteUser();
 
     if (this.state.searchMatches) {
-      this.setState((state) => ({
-        searchMatches: state.searchMatches.map((searchMatch) => ({
-          ...searchMatch,
-          focus: false,
-        })),
-      }));
+      this.setState((state) => {
+        return {
+          searchMatches: state.searchMatches && {
+            focusedId: null,
+            matches: state.searchMatches.matches.map((searchMatch) => ({
+              ...searchMatch,
+              focus: false,
+            })),
+          },
+        };
+      });
       this.updateEditorAtom(searchItemInFocusAtom, null);
     }
 
@@ -6639,34 +6593,6 @@ class App extends React.Component<AppProps, AppState> {
         this.state.activeTool.type,
         pointerDownState,
       );
-    } else if (this.state.activeTool.type === "image") {
-      // reset image preview on pointerdown
-      setCursor(this.interactiveCanvas, CURSOR_TYPE.CROSSHAIR);
-
-      // retrieve the latest element as the state may be stale
-      const pendingImageElement =
-        this.state.pendingImageElementId &&
-        this.scene.getElement(this.state.pendingImageElementId);
-
-      if (!pendingImageElement) {
-        return;
-      }
-
-      this.setState({
-        newElement: pendingImageElement as ExcalidrawNonSelectionElement,
-        pendingImageElementId: null,
-        multiElement: null,
-      });
-
-      const { x, y } = viewportCoordsToSceneCoords(event, this.state);
-
-      const frame = this.getTopLayerFrameAtSceneCoords({ x, y });
-
-      this.scene.mutateElement(pendingImageElement, {
-        x,
-        y,
-        frameId: frame ? frame.id : null,
-      });
     } else if (this.state.activeTool.type === "freedraw") {
       this.handleFreeDrawElementOnPointerDown(
         event,
@@ -6690,7 +6616,8 @@ class App extends React.Component<AppProps, AppState> {
       );
     } else if (
       this.state.activeTool.type !== "eraser" &&
-      this.state.activeTool.type !== "hand"
+      this.state.activeTool.type !== "hand" &&
+      this.state.activeTool.type !== "image"
     ) {
       this.createGenericElementOnPointerDown(
         this.state.activeTool.type,
@@ -6773,6 +6700,9 @@ class App extends React.Component<AppProps, AppState> {
       const hitElement = this.getElementAtPosition(
         scenePointer.x,
         scenePointer.y,
+        {
+          includeLockedElements: true,
+        },
       );
       this.hitLinkElement = this.getElementLinkAtPosition(
         scenePointer,
@@ -7113,7 +7043,7 @@ class App extends React.Component<AppProps, AppState> {
 
       if (
         selectedElements.length === 1 &&
-        !this.state.editingLinearElement &&
+        !this.state.selectedLinearElement?.isEditing &&
         !isElbowArrow(selectedElements[0]) &&
         !(
           this.state.selectedLinearElement &&
@@ -7184,8 +7114,7 @@ class App extends React.Component<AppProps, AppState> {
         }
       } else {
         if (this.state.selectedLinearElement) {
-          const linearElementEditor =
-            this.state.editingLinearElement || this.state.selectedLinearElement;
+          const linearElementEditor = this.state.selectedLinearElement;
           const ret = LinearElementEditor.handlePointerDown(
             event,
             this,
@@ -7199,26 +7128,62 @@ class App extends React.Component<AppProps, AppState> {
           }
           if (ret.linearElementEditor) {
             this.setState({ selectedLinearElement: ret.linearElementEditor });
-
-            if (this.state.editingLinearElement) {
-              this.setState({ editingLinearElement: ret.linearElementEditor });
-            }
           }
           if (ret.didAddPoint) {
             return true;
           }
         }
-        // hitElement may already be set above, so check first
-        pointerDownState.hit.element =
-          pointerDownState.hit.element ??
-          this.getElementAtPosition(
-            pointerDownState.origin.x,
-            pointerDownState.origin.y,
-          );
+
+        const allHitElements = this.getElementsAtPosition(
+          pointerDownState.origin.x,
+          pointerDownState.origin.y,
+          {
+            includeLockedElements: true,
+          },
+        );
+        const unlockedHitElements = allHitElements.filter((e) => !e.locked);
+
+        // Cannot set preferSelected in getElementAtPosition as we do in pointer move; consider:
+        // A & B: both unlocked, A selected, B on top, A & B overlaps in some way
+        // we want to select B when clicking on the overlapping area
+        const hitElementMightBeLocked = this.getElementAtPosition(
+          pointerDownState.origin.x,
+          pointerDownState.origin.y,
+          {
+            allHitElements,
+          },
+        );
+
+        if (
+          !hitElementMightBeLocked ||
+          hitElementMightBeLocked.id !== this.state.activeLockedId
+        ) {
+          this.setState({
+            activeLockedId: null,
+          });
+        }
+
+        if (
+          hitElementMightBeLocked &&
+          hitElementMightBeLocked.locked &&
+          !unlockedHitElements.some(
+            (el) => this.state.selectedElementIds[el.id],
+          )
+        ) {
+          pointerDownState.hit.element = null;
+        } else {
+          // hitElement may already be set above, so check first
+          pointerDownState.hit.element =
+            pointerDownState.hit.element ??
+            this.getElementAtPosition(
+              pointerDownState.origin.x,
+              pointerDownState.origin.y,
+            );
+        }
 
         this.hitLinkElement = this.getElementLinkAtPosition(
           pointerDownState.origin,
-          pointerDownState.hit.element,
+          hitElementMightBeLocked,
         );
 
         if (this.hitLinkElement) {
@@ -7248,10 +7213,7 @@ class App extends React.Component<AppProps, AppState> {
 
         // For overlapped elements one position may hit
         // multiple elements
-        pointerDownState.hit.allHitElements = this.getElementsAtPosition(
-          pointerDownState.origin.x,
-          pointerDownState.origin.y,
-        );
+        pointerDownState.hit.allHitElements = unlockedHitElements;
 
         const hitElement = pointerDownState.hit.element;
         const someHitElementIsSelected =
@@ -7266,19 +7228,24 @@ class App extends React.Component<AppProps, AppState> {
           this.clearSelection(hitElement);
         }
 
-        if (this.state.editingLinearElement) {
+        if (this.state.selectedLinearElement?.isEditing) {
           this.setState({
             selectedElementIds: makeNextSelectedElementIds(
               {
-                [this.state.editingLinearElement.elementId]: true,
+                [this.state.selectedLinearElement.elementId]: true,
               },
               this.state,
             ),
           });
           // If we click on something
         } else if (hitElement != null) {
+          // == deep selection ==
           // on CMD/CTRL, drill down to hit element regardless of groups etc.
           if (event[KEYS.CTRL_OR_CMD]) {
+            if (event.altKey) {
+              // ctrl + alt means we're lasso selecting
+              return false;
+            }
             if (!this.state.selectedElementIds[hitElement.id]) {
               pointerDownState.hit.wasAddedToSelection = true;
             }
@@ -7448,7 +7415,10 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     // How many pixels off the shape boundary we still consider a hit
-    const threshold = this.getElementHitThreshold();
+    const threshold = Math.max(
+      DEFAULT_COLLISION_THRESHOLD / this.state.zoom.value,
+      1,
+    );
     const [x1, y1, x2, y2] = getCommonBounds(selectedElements);
     return (
       point.x > x1 - threshold &&
@@ -7661,14 +7631,16 @@ class App extends React.Component<AppProps, AppState> {
     return element;
   };
 
-  private createImageElement = ({
+  private createImageElement = async ({
     sceneX,
     sceneY,
     addToFrameUnderCursor = true,
+    imageFile,
   }: {
     sceneX: number;
     sceneY: number;
     addToFrameUnderCursor?: boolean;
+    imageFile: File;
   }) => {
     const [gridX, gridY] = getGridPoint(
       sceneX,
@@ -7685,10 +7657,10 @@ class App extends React.Component<AppProps, AppState> {
         })
       : null;
 
-    const element = newImageElement({
+    const placeholderSize = 100 / this.state.zoom.value;
+
+    const placeholderImageElement = newImageElement({
       type: "image",
-      x: gridX,
-      y: gridY,
       strokeColor: this.state.currentItemStrokeColor,
       backgroundColor: this.state.currentItemBackgroundColor,
       fillStyle: this.state.currentItemFillStyle,
@@ -7699,9 +7671,18 @@ class App extends React.Component<AppProps, AppState> {
       opacity: this.state.currentItemOpacity,
       locked: false,
       frameId: topLayerFrame ? topLayerFrame.id : null,
+      x: gridX - placeholderSize / 2,
+      y: gridY - placeholderSize / 2,
+      width: placeholderSize,
+      height: placeholderSize,
     });
 
-    return element;
+    const initializedImageElement = await this.insertImageElement(
+      placeholderImageElement,
+      imageFile,
+    );
+
+    return initializedImageElement;
   };
 
   private handleLinearElementOnPointerDown = (
@@ -8062,6 +8043,12 @@ class App extends React.Component<AppProps, AppState> {
       }
       const pointerCoords = viewportCoordsToSceneCoords(event, this.state);
 
+      if (this.state.activeLockedId) {
+        this.setState({
+          activeLockedId: null,
+        });
+      }
+
       if (
         this.state.selectedLinearElement &&
         this.state.selectedLinearElement.elbowed &&
@@ -8104,16 +8091,12 @@ class App extends React.Component<AppProps, AppState> {
           this.scene,
         );
 
-        flushSync(() => {
-          if (this.state.selectedLinearElement) {
-            this.setState({
-              selectedLinearElement: {
-                ...this.state.selectedLinearElement,
-                segmentMidPointHoveredCoords: ret.segmentMidPointHoveredCoords,
-                pointerDownState: ret.pointerDownState,
-              },
-            });
-          }
+        this.setState({
+          selectedLinearElement: {
+            ...this.state.selectedLinearElement,
+            segmentMidPointHoveredCoords: ret.segmentMidPointHoveredCoords,
+            pointerDownState: ret.pointerDownState,
+          },
         });
         return;
       }
@@ -8172,7 +8155,9 @@ class App extends React.Component<AppProps, AppState> {
           pointDistance(
             pointFrom(pointerCoords.x, pointerCoords.y),
             pointFrom(pointerDownState.origin.x, pointerDownState.origin.y),
-          ) < DRAGGING_THRESHOLD
+          ) *
+            this.state.zoom.value <
+          MINIMUM_ARROW_SIZE
         ) {
           return;
         }
@@ -8190,8 +8175,7 @@ class App extends React.Component<AppProps, AppState> {
       const elementsMap = this.scene.getNonDeletedElementsMap();
 
       if (this.state.selectedLinearElement) {
-        const linearElementEditor =
-          this.state.editingLinearElement || this.state.selectedLinearElement;
+        const linearElementEditor = this.state.selectedLinearElement;
 
         if (
           LinearElementEditor.shouldAddMidpoint(
@@ -8227,16 +8211,6 @@ class App extends React.Component<AppProps, AppState> {
                 },
               });
             }
-            if (this.state.editingLinearElement) {
-              this.setState({
-                editingLinearElement: {
-                  ...this.state.editingLinearElement,
-                  pointerDownState: ret.pointerDownState,
-                  selectedPointsIndices: ret.selectedPointsIndices,
-                  segmentMidPointHoveredCoords: null,
-                },
-              });
-            }
           });
 
           return;
@@ -8247,31 +8221,19 @@ class App extends React.Component<AppProps, AppState> {
           return;
         }
 
-        const newLinearElementEditor = LinearElementEditor.handlePointDragging(
+        const newState = LinearElementEditor.handlePointDragging(
           event,
           this,
           pointerCoords.x,
           pointerCoords.y,
-          (element, pointsSceneCoords) => {
-            this.maybeSuggestBindingsForLinearElementAtCoords(
-              element,
-              pointsSceneCoords,
-            );
-          },
           linearElementEditor,
-          this.scene,
         );
-        if (newLinearElementEditor) {
+        if (newState) {
           pointerDownState.lastCoords.x = pointerCoords.x;
           pointerDownState.lastCoords.y = pointerCoords.y;
           pointerDownState.drag.hasOccurred = true;
 
-          this.setState({
-            editingLinearElement: this.state.editingLinearElement
-              ? newLinearElementEditor
-              : null,
-            selectedLinearElement: newLinearElementEditor,
-          });
+          this.setState(newState);
 
           return;
         }
@@ -8282,9 +8244,9 @@ class App extends React.Component<AppProps, AppState> {
       );
 
       const isSelectingPointsInLineEditor =
-        this.state.editingLinearElement &&
+        this.state.selectedLinearElement?.isEditing &&
         event.shiftKey &&
-        this.state.editingLinearElement.elementId ===
+        this.state.selectedLinearElement.elementId ===
           pointerDownState.hit.element?.id;
       if (
         (hasHitASelectedElement ||
@@ -8649,9 +8611,9 @@ class App extends React.Component<AppProps, AppState> {
           this.setAppState({
             selectionElement: null,
           });
-        } else {
-          this.maybeDragNewGenericElement(pointerDownState, event);
+          return;
         }
+        this.maybeDragNewGenericElement(pointerDownState, event);
       } else if (this.state.activeTool.type === "lasso") {
         if (!event.altKey && this.state.activeTool.fromSelection) {
           this.setActiveTool({ type: "selection" });
@@ -8748,11 +8710,15 @@ class App extends React.Component<AppProps, AppState> {
 
           if (isBindingElement(newElement, false)) {
             // When creating a linear element by dragging
-            this.maybeSuggestBindingsForLinearElementAtCoords(
-              newElement,
-              [pointerCoords],
-              this.state.startBoundElement,
-            );
+            this.setState({
+              suggestedBindings: maybeSuggestBindingsForLinearElementAtCoords(
+                newElement,
+                [pointerCoords],
+                this.scene,
+                this.state.zoom,
+                this.state.startBoundElement,
+              ),
+            });
           }
         } else {
           pointerDownState.lastCoords.x = pointerCoords.x;
@@ -8767,7 +8733,7 @@ class App extends React.Component<AppProps, AppState> {
         const elements = this.scene.getNonDeletedElements();
 
         // box-select line editor points
-        if (this.state.editingLinearElement) {
+        if (this.state.selectedLinearElement?.isEditing) {
           LinearElementEditor.handleBoxSelection(
             event,
             this.state,
@@ -8941,6 +8907,51 @@ class App extends React.Component<AppProps, AppState> {
 
       this.savePointer(childEvent.clientX, childEvent.clientY, "up");
 
+      // if current elements are still selected
+      // and the pointer is just over a locked element
+      // do not allow activeLockedId to be set
+
+      const hitElements = pointerDownState.hit.allHitElements;
+
+      const sceneCoords = viewportCoordsToSceneCoords(
+        { clientX: childEvent.clientX, clientY: childEvent.clientY },
+        this.state,
+      );
+
+      if (
+        this.state.activeTool.type === "selection" &&
+        !pointerDownState.boxSelection.hasOccurred &&
+        !pointerDownState.resize.isResizing &&
+        !hitElements.some((el) => this.state.selectedElementIds[el.id])
+      ) {
+        const hitLockedElement = this.getElementAtPosition(
+          sceneCoords.x,
+          sceneCoords.y,
+          {
+            includeLockedElements: true,
+          },
+        );
+
+        this.store.scheduleCapture();
+
+        if (hitLockedElement?.locked) {
+          this.setState({
+            activeLockedId:
+              hitLockedElement.groupIds.length > 0
+                ? hitLockedElement.groupIds.at(-1) || ""
+                : hitLockedElement.id,
+          });
+        } else {
+          this.setState({
+            activeLockedId: null,
+          });
+        }
+      } else {
+        this.setState({
+          activeLockedId: null,
+        });
+      }
+
       this.setState({
         selectedElementsAreBeingDragged: false,
       });
@@ -8965,23 +8976,23 @@ class App extends React.Component<AppProps, AppState> {
 
       // Handle end of dragging a point of a linear element, might close a loop
       // and sets binding element
-      if (this.state.editingLinearElement) {
+      if (this.state.selectedLinearElement?.isEditing) {
         if (
           !pointerDownState.boxSelection.hasOccurred &&
           pointerDownState.hit?.element?.id !==
-            this.state.editingLinearElement.elementId
+            this.state.selectedLinearElement.elementId
         ) {
           this.actionManager.executeAction(actionFinalize);
         } else {
           const editingLinearElement = LinearElementEditor.handlePointerUp(
             childEvent,
-            this.state.editingLinearElement,
+            this.state.selectedLinearElement,
             this.state,
             this.scene,
           );
-          if (editingLinearElement !== this.state.editingLinearElement) {
+          if (editingLinearElement !== this.state.selectedLinearElement) {
             this.setState({
-              editingLinearElement,
+              selectedLinearElement: editingLinearElement,
               suggestedBindings: [],
             });
           }
@@ -9010,35 +9021,11 @@ class App extends React.Component<AppProps, AppState> {
           if (selectedELements.length > 1) {
             this.setState({ selectedLinearElement: null });
           }
-        } else {
-          const linearElementEditor = LinearElementEditor.handlePointerUp(
-            childEvent,
-            this.state.selectedLinearElement,
-            this.state,
-            this.scene,
-          );
-
-          const { startBindingElement, endBindingElement } =
-            linearElementEditor;
-          const element = this.scene.getElement(linearElementEditor.elementId);
-          if (isBindingElement(element)) {
-            bindOrUnbindLinearElement(
-              element,
-              startBindingElement,
-              endBindingElement,
-              this.scene,
-            );
-          }
-
-          if (linearElementEditor !== this.state.selectedLinearElement) {
-            this.setState({
-              selectedLinearElement: {
-                ...linearElementEditor,
-                selectedPointsIndices: null,
-              },
-              suggestedBindings: [],
-            });
-          }
+        } else if (this.state.selectedLinearElement.isDragging) {
+          this.actionManager.executeAction(actionFinalize, "ui", {
+            event: childEvent,
+            sceneCoords,
+          });
         }
       }
 
@@ -9060,10 +9047,6 @@ class App extends React.Component<AppProps, AppState> {
         EVENT.KEYUP,
         pointerDownState.eventListeners.onKeyUp!,
       );
-
-      if (this.state.pendingImageElementId) {
-        this.setState({ pendingImageElementId: null });
-      }
 
       this.props?.onPointerUp?.(activeTool, pointerDownState);
       this.onPointerUpEmitter.trigger(
@@ -9102,72 +9085,73 @@ class App extends React.Component<AppProps, AppState> {
 
         return;
       }
-      if (isImageElement(newElement)) {
-        const imageElement = newElement;
-        try {
-          this.initializeImageDimensions(imageElement);
-          this.setState(
-            {
-              selectedElementIds: makeNextSelectedElementIds(
-                { [imageElement.id]: true },
-                this.state,
-              ),
-            },
-            () => {
-              this.actionManager.executeAction(actionFinalize);
-            },
-          );
-        } catch (error: any) {
-          console.error(error);
-          this.scene.replaceAllElements(
-            this.scene
-              .getElementsIncludingDeleted()
-              .filter((el) => el.id !== imageElement.id),
-          );
-          this.actionManager.executeAction(actionFinalize);
-        }
-        return;
-      }
 
       if (isLinearElement(newElement)) {
         if (newElement!.points.length > 1) {
-          this.store.shouldCaptureIncrement();
+          this.store.scheduleCapture();
         }
         const pointerCoords = viewportCoordsToSceneCoords(
           childEvent,
           this.state,
         );
 
-        if (!pointerDownState.drag.hasOccurred && newElement && !multiElement) {
-          this.scene.mutateElement(
-            newElement,
-            {
-              points: [
-                ...newElement.points,
-                pointFrom<LocalPoint>(
-                  pointerCoords.x - newElement.x,
-                  pointerCoords.y - newElement.y,
-                ),
-              ],
-            },
-            { informMutation: false, isDragging: false },
-          );
+        const dragDistance =
+          pointDistance(
+            pointFrom(pointerCoords.x, pointerCoords.y),
+            pointFrom(pointerDownState.origin.x, pointerDownState.origin.y),
+          ) * this.state.zoom.value;
 
-          this.setState({
-            multiElement: newElement,
-            newElement,
-          });
+        if (
+          (!pointerDownState.drag.hasOccurred ||
+            dragDistance < MINIMUM_ARROW_SIZE) &&
+          newElement &&
+          !multiElement
+        ) {
+          if (this.device.isTouchScreen) {
+            const FIXED_DELTA_X = Math.min(
+              (this.state.width * 0.7) / this.state.zoom.value,
+              100,
+            );
+
+            this.scene.mutateElement(
+              newElement,
+              {
+                x: newElement.x - FIXED_DELTA_X / 2,
+                points: [
+                  pointFrom<LocalPoint>(0, 0),
+                  pointFrom<LocalPoint>(FIXED_DELTA_X, 0),
+                ],
+              },
+              { informMutation: false, isDragging: false },
+            );
+
+            this.actionManager.executeAction(actionFinalize);
+          } else {
+            const dx = pointerCoords.x - newElement.x;
+            const dy = pointerCoords.y - newElement.y;
+
+            this.scene.mutateElement(
+              newElement,
+              {
+                points: [...newElement.points, pointFrom<LocalPoint>(dx, dy)],
+              },
+              { informMutation: false, isDragging: false },
+            );
+
+            this.setState({
+              multiElement: newElement,
+              newElement,
+            });
+          }
         } else if (pointerDownState.drag.hasOccurred && !multiElement) {
           if (
             isBindingEnabled(this.state) &&
             isBindingElement(newElement, false)
           ) {
-            maybeBindLinearElement(
-              newElement,
-              this.state,
-              pointerCoords,
-              this.scene,
-            );
+            this.actionManager.executeAction(actionFinalize, "ui", {
+              event: childEvent,
+              sceneCoords,
+            });
           }
           this.setState({ suggestedBindings: [], startBoundElement: null });
           if (!activeTool.locked) {
@@ -9404,7 +9388,7 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       if (resizingElement) {
-        this.store.shouldCaptureIncrement();
+        this.store.scheduleCapture();
       }
 
       if (resizingElement && isInvisiblySmallElement(resizingElement)) {
@@ -9521,11 +9505,17 @@ class App extends React.Component<AppProps, AppState> {
         !pointerDownState.hit.wasAddedToSelection &&
         // if we're editing a line, pointerup shouldn't switch selection if
         // box selected
-        (!this.state.editingLinearElement ||
-          !pointerDownState.boxSelection.hasOccurred)
+        (!this.state.selectedLinearElement?.isEditing ||
+          !pointerDownState.boxSelection.hasOccurred) &&
+        // hitElement can be set when alt + ctrl to toggle lasso and we will
+        // just respect the selected elements from lasso instead
+        this.state.activeTool.type !== "lasso"
       ) {
         // when inside line editor, shift selects points instead
-        if (childEvent.shiftKey && !this.state.editingLinearElement) {
+        if (
+          childEvent.shiftKey &&
+          !this.state.selectedLinearElement?.isEditing
+        ) {
           if (this.state.selectedElementIds[hitElement.id]) {
             if (isSelectedViaGroup(this.state, hitElement)) {
               this.setState((_prevState) => {
@@ -9687,14 +9677,13 @@ class App extends React.Component<AppProps, AppState> {
         ((hitElement &&
           hitElementBoundingBoxOnly(
             {
-              x: pointerDownState.origin.x,
-              y: pointerDownState.origin.y,
-              element: hitElement,
-              shape: getElementShape(
-                hitElement,
-                this.scene.getNonDeletedElementsMap(),
+              point: pointFrom(
+                pointerDownState.origin.x,
+                pointerDownState.origin.y,
               ),
-              threshold: this.getElementHitThreshold(),
+              element: hitElement,
+              elementsMap,
+              threshold: this.getElementHitThreshold(hitElement),
               frameNameBound: isFrameLikeElement(hitElement)
                 ? this.frameNameBoundsCache.get(hitElement)
                 : null,
@@ -9704,8 +9693,9 @@ class App extends React.Component<AppProps, AppState> {
           (!hitElement &&
             pointerDownState.hit.hasHitCommonBoundingBoxOfSelectedElements))
       ) {
-        if (this.state.editingLinearElement) {
-          this.setState({ editingLinearElement: null });
+        if (this.state.selectedLinearElement?.isEditing) {
+          // Exit editing mode but keep the element selected
+          this.actionManager.executeAction(actionToggleLinearEditor);
         } else {
           // Deselect selected elements
           this.setState({
@@ -9744,11 +9734,12 @@ class App extends React.Component<AppProps, AppState> {
           this.state.selectedElementIds,
         )
       ) {
-        this.store.shouldCaptureIncrement();
+        this.store.scheduleCapture();
       }
 
       if (
-        pointerDownState.drag.hasOccurred ||
+        (pointerDownState.drag.hasOccurred &&
+          !this.state.selectedLinearElement) ||
         isResizing ||
         isRotating ||
         isCropping
@@ -9837,20 +9828,15 @@ class App extends React.Component<AppProps, AppState> {
     this.elementsPendingErasure = new Set();
 
     if (didChange) {
-      this.store.shouldCaptureIncrement();
+      this.store.scheduleCapture();
       this.scene.replaceAllElements(elements);
     }
   };
 
-  private initializeImage = async ({
-    imageFile,
-    imageElement: _imageElement,
-    showCursorImagePreview = false,
-  }: {
-    imageFile: File;
-    imageElement: ExcalidrawImageElement;
-    showCursorImagePreview?: boolean;
-  }) => {
+  private initializeImage = async (
+    placeholderImageElement: ExcalidrawImageElement,
+    imageFile: File,
+  ) => {
     // at this point this should be guaranteed image file, but we do this check
     // to satisfy TS down the line
     if (!isSupportedImageFile(imageFile)) {
@@ -9907,30 +9893,17 @@ class App extends React.Component<AppProps, AppState> {
       }
     }
 
-    if (showCursorImagePreview) {
-      const dataURL = this.files[fileId]?.dataURL;
-      // optimization so that we don't unnecessarily resize the original
-      // full-size file for cursor preview
-      // (it's much faster to convert the resized dataURL to File)
-      const resizedFile = dataURL && dataURLToFile(dataURL);
-
-      this.setImagePreviewCursor(resizedFile || imageFile);
-    }
-
     const dataURL =
       this.files[fileId]?.dataURL || (await getDataURL(imageFile));
-
-    const imageElement = this.scene.mutateElement(
-      _imageElement,
-      {
-        fileId,
-      },
-      { informMutation: false, isDragging: false },
-    ) as NonDeleted<InitializedExcalidrawImageElement>;
 
     return new Promise<NonDeleted<InitializedExcalidrawImageElement>>(
       async (resolve, reject) => {
         try {
+          let initializedImageElement = this.getLatestInitializedImageElement(
+            placeholderImageElement,
+            fileId,
+          );
+
           this.addMissingFiles([
             {
               mimeType,
@@ -9940,29 +9913,64 @@ class App extends React.Component<AppProps, AppState> {
               lastRetrieved: Date.now(),
             },
           ]);
-          const cachedImageData = this.imageCache.get(fileId);
-          if (!cachedImageData) {
+
+          if (!this.imageCache.get(fileId)) {
             this.addNewImagesToImageCache();
-            await this.updateImageCache([imageElement]);
+
+            const { erroredFiles } = await this.updateImageCache([
+              initializedImageElement,
+            ]);
+
+            if (erroredFiles.size) {
+              throw new Error("Image cache update resulted with an error.");
+            }
           }
-          if (cachedImageData?.image instanceof Promise) {
-            await cachedImageData.image;
-          }
+
+          const imageHTML = await this.imageCache.get(fileId)?.image;
+
           if (
-            this.state.pendingImageElementId !== imageElement.id &&
-            this.state.newElement?.id !== imageElement.id
+            imageHTML &&
+            this.state.newElement?.id !== initializedImageElement.id
           ) {
-            this.initializeImageDimensions(imageElement, true);
+            initializedImageElement = this.getLatestInitializedImageElement(
+              placeholderImageElement,
+              fileId,
+            );
+
+            const naturalDimensions = this.getImageNaturalDimensions(
+              initializedImageElement,
+              imageHTML,
+            );
+
+            // no need to create a new instance anymore, just assign the natural dimensions
+            Object.assign(initializedImageElement, naturalDimensions);
           }
-          resolve(imageElement);
+
+          resolve(initializedImageElement);
         } catch (error: any) {
           console.error(error);
           reject(new Error(t("errors.imageInsertError")));
-        } finally {
-          if (!showCursorImagePreview) {
-            resetCursor(this.interactiveCanvas);
-          }
         }
+      },
+    );
+  };
+
+  /**
+   * use during async image initialization,
+   * when the placeholder image could have been modified in the meantime,
+   * and when you don't want to loose those modifications
+   */
+  private getLatestInitializedImageElement = (
+    imagePlaceholder: ExcalidrawImageElement,
+    fileId: FileId,
+  ) => {
+    const latestImageElement =
+      this.scene.getElement(imagePlaceholder.id) ?? imagePlaceholder;
+
+    return newElementWith(
+      latestImageElement as InitializedExcalidrawImageElement,
+      {
+        fileId,
       },
     );
   };
@@ -9970,10 +9978,9 @@ class App extends React.Component<AppProps, AppState> {
   /**
    * inserts image into elements array and rerenders
    */
-  insertImageElement = async (
-    imageElement: ExcalidrawImageElement,
+  private insertImageElement = async (
+    placeholderImageElement: ExcalidrawImageElement,
     imageFile: File,
-    showCursorImagePreview?: boolean,
   ) => {
     // we should be handling all cases upstream, but in case we forget to handle
     // a future case, let's throw here
@@ -9982,16 +9989,39 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
-    this.scene.insertElement(imageElement);
+    this.scene.insertElement(placeholderImageElement);
 
     try {
-      return await this.initializeImage({
+      const initializedImageElement = await this.initializeImage(
+        placeholderImageElement,
         imageFile,
-        imageElement,
-        showCursorImagePreview,
+      );
+
+      const nextElements = this.scene
+        .getElementsIncludingDeleted()
+        .map((element) => {
+          if (element.id === initializedImageElement.id) {
+            return initializedImageElement;
+          }
+
+          return element;
+        });
+
+      this.updateScene({
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+        elements: nextElements,
+        appState: {
+          selectedElementIds: makeNextSelectedElementIds(
+            { [initializedImageElement.id]: true },
+            this.state,
+          ),
+        },
       });
+
+      return initializedImageElement;
     } catch (error: any) {
-      this.scene.mutateElement(imageElement, {
+      this.store.scheduleAction(CaptureUpdateAction.NEVER);
+      this.scene.mutateElement(placeholderImageElement, {
         isDeleted: true,
       });
       this.actionManager.executeAction(actionFinalize);
@@ -10002,58 +10032,7 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
-  private setImagePreviewCursor = async (imageFile: File) => {
-    // mustn't be larger than 128 px
-    // https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Basic_User_Interface/Using_URL_values_for_the_cursor_property
-    const cursorImageSizePx = 96;
-    let imagePreview;
-
-    try {
-      imagePreview = await resizeImageFile(imageFile, {
-        maxWidthOrHeight: cursorImageSizePx,
-      });
-    } catch (e: any) {
-      if (e.cause === "UNSUPPORTED") {
-        throw new Error(t("errors.unsupportedFileType"));
-      }
-      throw e;
-    }
-
-    let previewDataURL = await getDataURL(imagePreview);
-
-    // SVG cannot be resized via `resizeImageFile` so we resize by rendering to
-    // a small canvas
-    if (imageFile.type === MIME_TYPES.svg) {
-      const img = await loadHTMLImageElement(previewDataURL);
-
-      let height = Math.min(img.height, cursorImageSizePx);
-      let width = height * (img.width / img.height);
-
-      if (width > cursorImageSizePx) {
-        width = cursorImageSizePx;
-        height = width * (img.height / img.width);
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.height = height;
-      canvas.width = width;
-      const context = canvas.getContext("2d")!;
-
-      context.drawImage(img, 0, 0, width, height);
-
-      previewDataURL = canvas.toDataURL(MIME_TYPES.svg) as DataURL;
-    }
-
-    if (this.state.pendingImageElementId) {
-      setCursor(this.interactiveCanvas, `url(${previewDataURL}) 4 4, auto`);
-    }
-  };
-
-  private onImageAction = async ({
-    insertOnCanvasDirectly,
-  }: {
-    insertOnCanvasDirectly: boolean;
-  }) => {
+  private onImageAction = async () => {
     try {
       const clientX = this.state.width / 2 + this.state.offsetLeft;
       const clientY = this.state.height / 2 + this.state.offsetTop;
@@ -10070,40 +10049,17 @@ class App extends React.Component<AppProps, AppState> {
         ) as (keyof typeof IMAGE_MIME_TYPES)[],
       });
 
-      const imageElement = this.createImageElement({
+      await this.createImageElement({
         sceneX: x,
         sceneY: y,
         addToFrameUnderCursor: false,
+        imageFile,
       });
 
-      if (insertOnCanvasDirectly) {
-        this.insertImageElement(imageElement, imageFile);
-        this.initializeImageDimensions(imageElement);
-        this.setState(
-          {
-            selectedElementIds: makeNextSelectedElementIds(
-              { [imageElement.id]: true },
-              this.state,
-            ),
-          },
-          () => {
-            this.actionManager.executeAction(actionFinalize);
-          },
-        );
-      } else {
-        this.setState(
-          {
-            pendingImageElementId: imageElement.id,
-          },
-          () => {
-            this.insertImageElement(
-              imageElement,
-              imageFile,
-              /* showCursorImagePreview */ true,
-            );
-          },
-        );
-      }
+      // avoid being batched (just in case)
+      this.setState({}, () => {
+        this.actionManager.executeAction(actionFinalize);
+      });
     } catch (error: any) {
       if (error.name !== "AbortError") {
         console.error(error);
@@ -10112,7 +10068,6 @@ class App extends React.Component<AppProps, AppState> {
       }
       this.setState(
         {
-          pendingImageElementId: null,
           newElement: null,
           activeTool: updateActiveTool(this.state, { type: "selection" }),
         },
@@ -10123,62 +10078,32 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
-  initializeImageDimensions = (
+  private getImageNaturalDimensions = (
     imageElement: ExcalidrawImageElement,
-    forceNaturalSize = false,
+    imageHTML: HTMLImageElement,
   ) => {
-    const image =
-      isInitializedImageElement(imageElement) &&
-      this.imageCache.get(imageElement.fileId)?.image;
+    const minHeight = Math.max(this.state.height - 120, 160);
+    // max 65% of canvas height, clamped to <300px, vh - 120px>
+    const maxHeight = Math.min(
+      minHeight,
+      Math.floor(this.state.height * 0.5) / this.state.zoom.value,
+    );
 
-    if (!image || image instanceof Promise) {
-      if (
-        imageElement.width < DRAGGING_THRESHOLD / this.state.zoom.value &&
-        imageElement.height < DRAGGING_THRESHOLD / this.state.zoom.value
-      ) {
-        const placeholderSize = 100 / this.state.zoom.value;
-        this.scene.mutateElement(imageElement, {
-          x: imageElement.x - placeholderSize / 2,
-          y: imageElement.y - placeholderSize / 2,
-          width: placeholderSize,
-          height: placeholderSize,
-        });
-      }
+    const height = Math.min(imageHTML.naturalHeight, maxHeight);
+    const width = height * (imageHTML.naturalWidth / imageHTML.naturalHeight);
 
-      return;
-    }
+    // add current imageElement width/height to account for previous centering
+    // of the placeholder image
+    const x = imageElement.x + imageElement.width / 2 - width / 2;
+    const y = imageElement.y + imageElement.height / 2 - height / 2;
 
-    if (
-      forceNaturalSize ||
-      // if user-created bounding box is below threshold, assume the
-      // intention was to click instead of drag, and use the image's
-      // intrinsic size
-      (imageElement.width < DRAGGING_THRESHOLD / this.state.zoom.value &&
-        imageElement.height < DRAGGING_THRESHOLD / this.state.zoom.value)
-    ) {
-      const minHeight = Math.max(this.state.height - 120, 160);
-      // max 65% of canvas height, clamped to <300px, vh - 120px>
-      const maxHeight = Math.min(
-        minHeight,
-        Math.floor(this.state.height * 0.5) / this.state.zoom.value,
-      );
-
-      const height = Math.min(image.naturalHeight, maxHeight);
-      const width = height * (image.naturalWidth / image.naturalHeight);
-
-      // add current imageElement width/height to account for previous centering
-      // of the placeholder image
-      const x = imageElement.x + imageElement.width / 2 - width / 2;
-      const y = imageElement.y + imageElement.height / 2 - height / 2;
-
-      this.scene.mutateElement(imageElement, {
-        x,
-        y,
-        width,
-        height,
-        crop: null,
-      });
-    }
+    return {
+      x,
+      y,
+      width,
+      height,
+      crop: null,
+    };
   };
 
   /** updates image cache, refreshing updated elements and/or setting status
@@ -10192,16 +10117,11 @@ class App extends React.Component<AppProps, AppState> {
       fileIds: elements.map((element) => element.fileId),
       files,
     });
-    if (updatedFiles.size || erroredFiles.size) {
-      for (const element of elements) {
-        if (updatedFiles.has(element.fileId)) {
-          ShapeCache.delete(element);
-        }
-      }
-    }
+
     if (erroredFiles.size) {
+      this.store.scheduleAction(CaptureUpdateAction.NEVER);
       this.scene.replaceAllElements(
-        this.scene.getElementsIncludingDeleted().map((element) => {
+        elements.map((element) => {
           if (
             isInitializedImageElement(element) &&
             erroredFiles.has(element.fileId)
@@ -10234,6 +10154,15 @@ class App extends React.Component<AppProps, AppState> {
         uncachedImageElements,
         files,
       );
+
+      if (updatedFiles.size) {
+        for (const element of uncachedImageElements) {
+          if (updatedFiles.has(element.fileId)) {
+            ShapeCache.delete(element);
+          }
+        }
+      }
+
       if (updatedFiles.size) {
         this.scene.triggerUpdate();
       }
@@ -10274,49 +10203,6 @@ class App extends React.Component<AppProps, AppState> {
       suggestedBindings:
         hoveredBindableElement != null ? [hoveredBindableElement] : [],
     });
-  };
-
-  private maybeSuggestBindingsForLinearElementAtCoords = (
-    linearElement: NonDeleted<ExcalidrawLinearElement>,
-    /** scene coords */
-    pointerCoords: {
-      x: number;
-      y: number;
-    }[],
-    // During line creation the start binding hasn't been written yet
-    // into `linearElement`
-    oppositeBindingBoundElement?: ExcalidrawBindableElement | null,
-  ): void => {
-    if (!pointerCoords.length) {
-      return;
-    }
-
-    const suggestedBindings = pointerCoords.reduce(
-      (acc: NonDeleted<ExcalidrawBindableElement>[], coords) => {
-        const hoveredBindableElement = getHoveredElementForBinding(
-          coords,
-          this.scene.getNonDeletedElements(),
-          this.scene.getNonDeletedElementsMap(),
-          this.state.zoom,
-          isElbowArrow(linearElement),
-          isElbowArrow(linearElement),
-        );
-        if (
-          hoveredBindableElement != null &&
-          !isLinearElementSimpleAndAlreadyBound(
-            linearElement,
-            oppositeBindingBoundElement?.id,
-            hoveredBindableElement,
-          )
-        ) {
-          acc.push(hoveredBindableElement);
-        }
-        return acc;
-      },
-      [],
-    );
-
-    this.setState({ suggestedBindings });
   };
 
   private clearSelection(hitElement: ExcalidrawElement | null): void {
@@ -10413,16 +10299,7 @@ class App extends React.Component<AppProps, AppState> {
         // if no scene is embedded or we fail for whatever reason, fall back
         // to importing as regular image
         // ---------------------------------------------------------------------
-
-        const imageElement = this.createImageElement({ sceneX, sceneY });
-        this.insertImageElement(imageElement, file);
-        this.initializeImageDimensions(imageElement);
-        this.setState({
-          selectedElementIds: makeNextSelectedElementIds(
-            { [imageElement.id]: true },
-            this.state,
-          ),
-        });
+        this.createImageElement({ sceneX, sceneY, imageFile: file });
 
         return;
       }
@@ -10467,6 +10344,7 @@ class App extends React.Component<AppProps, AppState> {
           link: normalizeLink(text),
         });
         if (embeddable) {
+          this.store.scheduleCapture();
           this.setState({ selectedElementIds: { [embeddable.id]: true } });
         }
       }
@@ -10517,8 +10395,13 @@ class App extends React.Component<AppProps, AppState> {
         // restore the fractional indices by mutating elements
         syncInvalidIndices(elements.concat(ret.data.elements));
 
-        // update the store snapshot for old elements, otherwise we would end up with duplicated fractional indices on undo
-        this.store.updateSnapshot(arrayToMap(elements), this.state);
+        // don't capture and only update the store snapshot for old elements,
+        // otherwise we would end up with duplicated fractional indices on undo
+        this.store.scheduleMicroAction({
+          action: CaptureUpdateAction.NEVER,
+          elements,
+          appState: undefined,
+        });
 
         this.setState({ isLoading: true });
         this.syncActionResult({
@@ -10796,6 +10679,7 @@ class App extends React.Component<AppProps, AppState> {
           croppingElement,
           cropElement(
             croppingElement,
+            this.scene.getNonDeletedElementsMap(),
             transformHandleType,
             image.naturalWidth,
             image.naturalHeight,
